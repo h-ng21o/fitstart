@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>핏스타트 – 헬스 입문 코치</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f5f6f8;--card:#fff;--tx:#1b1f27;--mu:#667085;--ac:#2f6bff;--ac2:#e8efff;--bd:#e2e5ea}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141a;--card:#1c1f27;--tx:#eef0f4;--mu:#9aa3b2;--ac:#6b93ff;--ac2:#252c44;--bd:#2d313c}}
+:root[data-theme="dark"]{--bg:#12141a;--card:#1c1f27;--tx:#eef0f4;--mu:#9aa3b2;--ac:#6b93ff;--ac2:#252c44;--bd:#2d313c}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 -apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif}
+main{max-width:960px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:0 0 10px}p{margin:0 0 10px}
+.mu{color:var(--mu);font-size:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;margin-bottom:14px}
+.opts{display:grid;gap:10px}
+button,.btn{font:inherit;cursor:pointer}
+.opt{background:var(--card);color:var(--tx);border:1.5px solid var(--bd);border-radius:14px;padding:16px;text-align:left}
+.opt:hover,.opt.on{border-color:var(--ac);background:var(--ac2)}
+.pri{background:var(--ac);color:#fff;border:0;border-radius:12px;padding:14px;width:100%;font-weight:700;margin-top:6px}
+.bk{background:none;border:0;color:var(--mu);padding:6px 0;margin-bottom:8px}
+label{display:block;font-size:14px;color:var(--mu);margin:10px 0 4px}
+input,select{width:100%;font:inherit;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bar{height:6px;background:var(--bd);border-radius:6px;margin-bottom:16px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac)}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.stats{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
+.st{background:var(--ac2);border-radius:12px;padding:12px}.st b{display:block;font-size:22px}.st span{font-size:13px;color:var(--mu)}
+.day{border-top:1px solid var(--bd);padding:10px 0}.day:first-of-type{border-top:0}
+.day b{color:var(--ac)}.day ul{margin:4px 0 0;padding-left:18px;font-size:14px}
+.tag{display:inline-block;background:var(--ac2);color:var(--ac);border-radius:20px;padding:2px 10px;font-size:13px;margin:0 4px 4px 0}
+.rest{color:var(--mu);font-size:14px}
+.q{margin-bottom:14px}
+.wk{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}.wk b{color:var(--ac)}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+var S={},step='start',QZ=[
+{q:'근육이 늘려면 꼭 필요한 조합은?',o:['자극(운동) + 단백질 + 휴식','매일 같은 부위만 무한 반복','땀을 최대한 많이 흘리기'],a:0},
+{q:'"3세트 10회"의 뜻은?',o:['10회 반복을 3번 (사이에 휴식)','10분씩 3번 달리기','10kg짜리를 3개 들기'],a:0},
+{q:'점진적 과부하란?',o:['항상 같은 무게로만 운동','무게·횟수를 조금씩 늘려 자극을 키우기','한 번에 최대 무게 도전'],a:1}];
+var EX={
+squat:['스쿼트(또는 박스 스쿼트)','하체'],leg:['레그프레스','하체'],bench:['벤치프레스(또는 푸시업)','가슴'],inc:['인클라인 덤벨프레스','가슴'],
+row:['시티드 로우','등'],lat:['랫풀다운','등'],ohp:['숄더프레스','어깨'],lat2:['사이드 레터럴 레이즈','어깨'],
+curl:['덤벨 컬','팔'],tri:['케이블 푸쉬다운','팔'],rdl:['루마니안 데드리프트','하체 후면'],hip:['힙 브릿지','둔근'],plank:['플랭크 30~45초','코어']};
+var SPL={
+full:[['A 전신',['squat','bench','lat','plank']],['B 전신',['leg','ohp','row','hip']]],
+ul:[['상체',['bench','lat','ohp','row','curl']],['하체',['squat','rdl','leg','hip','plank']]],
+ppl:[['미는 날',['bench','inc','ohp','lat2','tri']],['당기는 날',['lat','row','curl','plank']],['하체',['squat','rdl','leg','hip']]]};
+function $(id){return document.getElementById(id)}
+function save(){try{localStorage.setItem('fitstart',JSON.stringify(S))}catch(e){}}
+function load(){try{var d=localStorage.getItem('fitstart');return d?JSON.parse(d):null}catch(e){return null}}
+function go(s){step=s;render();window.scrollTo(0,0)}
+var ORDER=['start','know','exp','body','goal'];
+function bar(){var i=ORDER.indexOf(step);if(step==='know')i=1;if(step==='exp')i=1;var p=(i+1)/5*100;return '<div class="bar"><i style="width:'+p+'%"></i></div>'}
+function render(){var a=$('app'),h='';
+if(step==='start'){var old=load();
+h='<h1>💪 핏스타트</h1><p class="mu">목표에 맞는 주간 운동 루틴을 알려드려요.</p><div class="card"><h2>운동은 처음인가요?</h2><div class="opts"><button class="opt" onclick="S={first:true};go(\'know\')"><b>처음이에요</b><br><span class="mu">운동 지식부터 가볍게 확인해요</span></button><button class="opt" onclick="S={first:false};go(\'exp\')"><b>운동을 하고 있어요</b><br><span class="mu">운동 경력을 알려주세요</span></button></div></div>'+
+(old&&old.res?'<button class="pri" onclick="S=load();go(\'dash\')">저장된 내 대시보드 보기</button>':'');}
+else if(step==='know'){h=bar()+'<button class="bk" onclick="go(\'start\')">← 뒤로</button><div class="card"><h2>운동 지식 체크 (3문제)</h2>';
+QZ.forEach(function(q,i){h+='<div class="q"><p><b>'+(i+1)+'. '+q.q+'</b></p><div class="opts">';q.o.forEach(function(o,j){h+='<button class="opt'+(S['q'+i]===j?' on':'')+'" onclick="S.q'+i+'='+j+';render()">'+o+'</button>'});h+='</div></div>'});
+h+='<button class="pri" onclick="knowDone()">다음</button></div>';}
+else if(step==='exp'){h=bar()+'<button class="bk" onclick="go(\'start\')">← 뒤로</button><div class="card"><h2>얼마나 운동하셨나요?</h2><label>운동 경력</label><select id="months"><option value="2">3개월 미만</option><option value="6">3~12개월</option><option value="24">1년 이상</option></select><label>현재 주당 운동 횟수</label><select id="cur"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select><button class="pri" onclick="S.months=+$(\'months\').value;S.cur=+$(\'cur\').value;S.level=S.months<3?0:S.months<12?1:2;go(\'body\')">다음</button></div>';}
+else if(step==='body'){h=bar()+'<button class="bk" onclick="go(S.first?\'know\':\'exp\')">← 뒤로</button><div class="card"><h2>내 몸 정보</h2><div class="g2"><div><label>성별</label><select id="sex"><option value="m">남</option><option value="f">여</option></select></div><div><label>나이</label><input id="age" type="number" inputmode="numeric" placeholder="25"></div><div><label>키 (cm) *</label><input id="h" type="number" inputmode="decimal" placeholder="170"></div><div><label>몸무게 (kg) *</label><input id="w" type="number" inputmode="decimal" placeholder="65"></div></div>'+
+'<p class="mu" style="margin-top:14px">아래는 알고 있다면 작성해주세요 (선택)</p><div class="g2"><div><label>체지방률 (%)</label><input id="fat" type="number" inputmode="decimal"></div><div><label>골격근량 (kg)</label><input id="mus" type="number" inputmode="decimal"></div><div><label>기초대사량 (kcal)</label><input id="bmr" type="number" inputmode="numeric"></div><div><label>하루 물 섭취 (L)</label><input id="wat" type="number" step="0.1" inputmode="decimal"></div></div><p id="err" class="mu" style="color:#d92d20"></p><button class="pri" onclick="bodyDone()">다음</button></div>';}
+else if(step==='goal'){h=bar()+'<button class="bk" onclick="go(\'body\')">← 뒤로</button><div class="card"><h2>목표 정하기</h2><div class="opts">'+
+[['fat','체지방 감량','살을 빼고 몸을 가볍게'],['mus','근육 증가','몸을 키우고 탄탄하게'],['fit','체력·건강','꾸준히 건강한 습관 만들기']].map(function(g){return '<button class="opt'+(S.goal===g[0]?' on':'')+'" onclick="S.goal=\''+g[0]+'\';render()"><b>'+g[1]+'</b><br><span class="mu">'+g[2]+'</span></button>'}).join('')+'</div><label>일주일에 운동 가능한 횟수</label><select id="days">'+[2,3,4,5,6].map(function(d){return '<option'+(d===3?' selected':'')+'>'+d+'</option>'}).join('')+'</select><button class="pri" onclick="goalDone()">분석하고 루틴 받기</button></div>';}
+else if(step==='dash'){h=dash();}
+a.innerHTML=h;}
+function knowDone(){var s=0;for(var i=0;i<3;i++){if(S['q'+i]===undefined){alert('모든 문제에 답해주세요');return}if(S['q'+i]===QZ[i].a)s++}S.score=s;S.level=s>=2?1:0;go('body')}
+function bodyDone(){var g=function(i){var v=parseFloat($(i).value);return isNaN(v)?null:v};
+S.sex=$('sex').value;S.age=g('age')||25;S.h=g('h');S.w=g('w');S.fat=g('fat');S.mus=g('mus');S.bmr=g('bmr');S.wat=g('wat');
+if(!S.h||!S.w||S.h<100||S.h>250||S.w<30||S.w>300){$('err').textContent='키와 몸무게를 올바르게 입력해주세요.';return}go('goal')}
+function goalDone(){if(!S.goal){alert('목표를 선택해주세요');return}S.days=+$('days').value;S.res=calc();save();go('dash')}
+function calc(){var bmi=S.w/Math.pow(S.h/100,2);
+var bmr=S.bmr||Math.round(10*S.w+6.25*S.h-5*S.age+(S.sex==='m'?5:-161));
+var tdee=Math.round(bmr*(1.25+0.05*S.days));
+var adj=S.goal==='fat'?-400:S.goal==='mus'?250:0;
+var prot=Math.round(S.w*(S.goal==='fit'?1.2:1.6));
+var water=Math.round(S.w*0.033*10)/10;
+return{bmi:bmi,bmr:bmr,tdee:tdee,kcal:tdee+adj,prot:prot,water:water}}
+function plan(){var d=S.days,key=d<=3?'full':d===4?'ul':'ppl',tpl=SPL[key],out=[],n=0;
+var sets=S.level===0?2:3,reps=S.goal==='mus'?'8~12':S.goal==='fat'?'12~15':'10~12';
+if(S.goal==='mus'&&S.level>=1)sets=4;
+var cardio=S.goal==='fat'?'유산소 30분':S.goal==='fit'?'가벼운 걷기·유산소 20분':'';
+for(var i=0;i<d;i++){var t=tpl[i%tpl.length];out.push({t:t[0],ex:t[1],cardio:cardio&&(i%2===1||d<=2)?cardio:''})}
+return{days:out,sets:sets,reps:reps,key:key}}
+function dash(){var r=S.res||calc(),p=plan(),G={fat:'체지방 감량',mus:'근육 증가',fit:'체력·건강'}[S.goal],L=['입문','초급','중급'][S.level];
+var bc=r.bmi<18.5?'저체중':r.bmi<23?'정상':r.bmi<25?'과체중':'비만';
+var h='<h1>📊 내 대시보드</h1><p class="mu"><span class="tag">'+G+'</span><span class="tag">'+L+' 단계</span><span class="tag">주 '+S.days+'회</span></p><div class="grid">';
+h+='<div class="card"><h2>몸 상태 분석</h2><div class="stats"><div class="st"><b>'+r.bmi.toFixed(1)+'</b><span>BMI ('+bc+')</span></div><div class="st"><b>'+r.bmr+'</b><span>기초대사량 kcal'+(S.bmr?'':' (추정)')+'</span></div><div class="st"><b>'+r.kcal+'</b><span>하루 목표 칼로리</span></div><div class="st"><b>'+r.prot+'g</b><span>하루 단백질</span></div><div class="st"><b>'+r.water+'L</b><span>권장 물 섭취'+(S.wat!=null?' (현재 '+S.wat+'L)':'')+'</span></div>'+
+(S.fat!=null?'<div class="st"><b>'+S.fat+'%</b><span>체지방률</span></div>':S.mus!=null?'<div class="st"><b>'+S.mus+'kg</b><span>골격근량</span></div>':'<div class="st"><b>'+S.w+'kg</b><span>현재 체중</span></div>')+'</div>';
+h+='<p class="mu" style="margin-top:12px">'+advice(r)+'</p></div>';
+h+='<div class="card"><h2>이번 주 루틴</h2>';
+var names=['월','화','수','목','금','토','일'],gap={2:[0,3],3:[0,2,4],4:[0,1,3,4],5:[0,1,2,4,5],6:[0,1,2,3,4,5]}[S.days],k=0;
+for(var i=0;i<7;i++){var di=gap.indexOf(i);if(di<0){h+='<div class="day rest"><b style="color:var(--mu)">'+names[i]+'</b> 휴식 (스트레칭·가벼운 산책)</div>';continue}
+var d=p.days[di];h+='<div class="day"><b>'+names[i]+'</b> '+d.t+'<ul>'+d.ex.map(function(e){return '<li>'+EX[e][0]+' <span class="mu">· '+EX[e][1]+' '+(e==='plank'?'3세트':p.sets+'세트×'+p.reps+'회')+'</span></li>'}).join('')+(d.cardio?'<li>'+d.cardio+'</li>':'')+'</ul></div>'}
+h+='</div>';
+h+='<div class="card"><h2>4주 진행 계획</h2><div class="wk"><b>1주</b><span>자세 익히기, 가벼운 무게로 적응 (여유 3회 남기기)</span><b>2주</b><span>반복 횟수를 1~2회 늘리기</span><b>3주</b><span>무게를 2.5~5% 올리고 횟수는 처음으로</span><b>4주</b><span>세트 수 줄이고 회복(디로드), 기록 점검</span></div><p class="mu" style="margin-top:12px">4주 뒤 체중·사진·들어올린 무게를 비교하고 다시 분석해 보세요.</p></div>';
+h+='<div class="card"><h2>꼭 기억하세요</h2><p class="mu">• 운동 전 5분 가볍게 몸 풀기, 세트 사이 60~90초 쉬기<br>• 통증(날카로운 아픔)이 있으면 중단하고 전문가 상담<br>• 잠 7시간 이상, 단백질과 물 챙기기<br>• 이 앱은 참고용이며 의학적 조언이 아닙니다</p></div>';
+h+='</div><button class="pri" onclick="go(\'start\')" style="max-width:320px;margin-top:6px">처음부터 다시하기</button>';return h}
+function advice(r){var t=S.goal==='fat'?'하루 약 400kcal를 줄이고(목표 '+r.kcal+'kcal) 근손실을 막기 위해 단백질을 충분히 드세요. 한 달 기준 체중의 2~4% 감량이 무난해요.':S.goal==='mus'?'유지 칼로리보다 약 250kcal 더 먹고(목표 '+r.kcal+'kcal) 큰 근육 운동부터 무게를 천천히 올려가세요.':'지금 칼로리를 유지하며 꾸준함이 최우선이에요. 주 '+S.days+'회를 4주 지키는 것이 첫 목표예요.';
+if(S.level===0)t+=' 입문 단계라 머신·맨몸 위주로 자세부터 익히는 루틴이에요.';return t}
+render();
+</script>
+</body>
+</html>
