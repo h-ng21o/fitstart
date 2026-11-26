@@ -34,10 +34,67 @@ input,select{width:100%;font:inherit;padding:12px;border-radius:10px;border:1px 
 .rest{color:var(--mu);font-size:14px}
 .q{margin-bottom:14px}
 .wk{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}.wk b{color:var(--ac)}
+details{margin-top:12px;border-top:1px solid var(--bd);padding-top:10px}summary{cursor:pointer;font-weight:700}.wy{font-size:14px;margin:10px 0}.wy b{color:var(--ac)}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}.tabs .opt{padding:8px;text-align:center;font-size:14px}
 </style>
 </head>
 <body>
 <main id="app"></main>
+<script>
+/* ===== 핏스타트 운동 데이터 + 추천 로직 =====
+   DB 한 줄 = [이름, 부위, 장소(h=집 가능, g=헬스장), 최소단계(0입문 1초급 2중급), 종류(c복합 i고립), 관절부담(0낮음 1보통 2높음)]
+   운동을 추가하려면 DB에 한 줄만 더 적으면 돼요. */
+var PARTS=[['all','전신 골고루','한쪽에 치우치지 않게 균형 있게'],['hip','힙 (둔근)','엉덩이를 단단하고 볼륨 있게'],['leg','다리 (하체)','허벅지·종아리 근력 강화'],['chest','가슴','가슴 근육 키우기'],['back','등 (광배)','넓은 등, 역삼각형 몸'],['sh','어깨·팔','어깨 라인과 팔 근육']];
+var PL={hip:'힙',leg:'하체',chest:'가슴',back:'등',sh:'어깨',arm:'팔',core:'코어'},LN=['입문','초급','중급'];
+var DB=[
+['힙 브릿지','hip','h',0,'c',0],['싱글레그 힙 브릿지','hip','h',1,'c',0],['힙 어브덕션 머신','hip','g',0,'i',0],['케이블 킥백','hip','g',1,'i',0],
+['스텝업','hip','h',1,'c',1],['루마니안 데드리프트','hip','g',1,'c',1],['바벨 힙 쓰러스트','hip','g',2,'c',1],['불가리안 스플릿 스쿼트','hip','h',2,'c',2],
+['맨몸 스쿼트','leg','h',0,'c',0],['박스 스쿼트 (의자 앉았다 일어나기)','leg','h',0,'c',0],['레그프레스','leg','g',0,'c',1],['레그 익스텐션','leg','g',0,'i',0],
+['레그 컬','leg','g',0,'i',0],['카프 레이즈','leg','h',0,'i',0],['런지','leg','h',1,'c',1],['고블릿 스쿼트','leg','g',1,'c',1],['바벨 스쿼트','leg','g',2,'c',2],
+['무릎 푸시업','chest','h',0,'c',0],['머신 체스트프레스','chest','g',0,'c',0],['푸시업','chest','h',1,'c',1],['덤벨 벤치프레스','chest','g',1,'c',1],
+['인클라인 덤벨프레스','chest','g',1,'c',1],['케이블 플라이','chest','g',1,'i',0],['바벨 벤치프레스','chest','g',2,'c',1],['딥스','chest','h',2,'c',2],
+['랫풀다운','back','g',0,'c',0],['시티드 로우','back','g',0,'c',0],['슈퍼맨 (엎드려 등 들기)','back','h',0,'i',0],['덤벨 원암 로우','back','g',1,'c',0],
+['테이블 로우 (튼튼한 책상 아래)','back','h',1,'c',1],['어시스트 풀업','back','g',1,'c',1],['스트레이트암 풀다운','back','g',1,'i',0],['풀업','back','g',2,'c',1],['바벨 로우','back','g',2,'c',2],
+['머신 숄더프레스','sh','g',0,'c',0],['사이드 레터럴 레이즈','sh','g',0,'i',0],['덤벨 숄더프레스','sh','g',1,'c',1],['리어델트 플라이','sh','g',1,'i',0],['파이크 푸시업','sh','h',2,'c',1],
+['덤벨 컬','arm','g',0,'i',0],['케이블 푸쉬다운','arm','g',0,'i',0],['해머 컬','arm','g',1,'i',0],['벤치 딥 (의자)','arm','h',1,'i',1],['오버헤드 트라이셉스 익스텐션','arm','g',1,'i',0],['다이아몬드 푸시업','arm','h',2,'i',1],
+['글루트 킥백 (네발기기)','hip','h',0,'i',0],['물병 숄더프레스','sh','h',0,'c',0],['물병 컬','arm','h',0,'i',0],['플랭크','core','h',0,'i',0],['데드버그','core','h',0,'i',0],['케이블 크런치','core','g',1,'i',0],['행잉 레그레이즈','core','g',2,'i',1]
+];
+function togPart(k){var a=S.parts||[];if(k==='all')a=['all'];else{a=a.filter(function(x){return x!=='all'});var i=a.indexOf(k);if(i>=0)a.splice(i,1);else{if(a.length>=2)a.shift();a.push(k)}}S.parts=a;render()}
+function focusList(){var f=[];(S.parts||['all']).forEach(function(k){if(k==='sh')f.push('sh','arm');else if(k!=='all')f.push(k)});return f}
+function isProt(r){return r.bmi>=27||S.age>=50}
+function recPlan(){var L=S.level,g=S.goal,r=S.res||calc(),wk=(typeof WK==='number')?WK:1,prot=isProt(r),hm=S.equip==='h',d=S.days,fs=focusList(),
+base=[2,3,4][L],sets=(wk===1||wk===4)?Math.max(2,base-1):base,
+tpl=d<=3?['full','full','full']:d===4?['U','L','U','L']:d===5?['U','L','U','L','F']:['U','L','U','L','F','F'],
+G={full:['leg','hip','chest','back','sh','core'],U:['chest','back','sh','arm'],L:['leg','hip','core'],F:fs.length?fs.slice():['leg','chest','back','core']},
+RP={c:{mus:'6~10',fat:'10~15',fit:'8~12'},i:{mus:'10~15',fat:'12~20',fit:'12~15'}},
+N=['자세 익히기: 가벼운 무게로, 힘이 3회 남을 정도만','반복 횟수를 1~2회 늘려 보기','무게를 조금(2.5~5%) 올리고 횟수는 처음으로','회복 주간: 세트 수를 줄이고 몸 상태 점검'];
+function sc(x){return (x[4]==='c'?2:0)+(x[3]===L?2:x[3]===L-1?1:0)-(x[5]===1&&prot?2:0)}
+function ok(x,lv){return x[1]===pt&&(!hm||x[2]==='h')&&(!lv||x[3]<=L)&&!(prot&&x[5]===2)}
+var pt;
+function pick(part,n,di){pt=part;var c=DB.filter(function(x){return ok(x,true)});if(!c.length)c=DB.filter(function(x){return ok(x,false)});
+c.sort(function(a,b){return sc(b)-sc(a)});var pool=c.slice(0,Math.max(n+2,4)),o=[];
+for(var i=0;i<n&&i<pool.length;i++){var x=pool[(di*n+i)%pool.length];if(o.indexOf(x)<0)o.push(x)}return o}
+function mk(x,f){var tm=/플랭크|데드버그/.test(x[0]),s=Math.min(5,sets+(f&&L>0?1:0)),rp=RP[x[4]][g];
+var lt=x[3]===L?'내 단계('+LN[L]+')에 맞는 난이도':'한 단계 쉬워 부담이 적어요';
+return{n:x[0],pl:PL[x[1]],sr:s+'세트×'+(tm?'30~45초':rp+'회'+(wk===2?' (+1~2회)':'')),
+why:(f?'🎯 집중 부위라 비중 UP · ':'')+(x[4]==='c'?'여러 근육을 함께 쓰는 복합운동':'부위를 콕 집어 자극하는 보조운동')+' · '+lt+(prot&&x[5]===0?' · 관절 부담 낮음':'')}}
+function cardio(){return g==='fat'?(L===0?'걷기 20~30분':L===2?'인터벌 유산소 20분 (1분 빠르게 / 1분 천천히)':'유산소 25분'):'가벼운 걷기·유산소 20분'}
+var days=[],lab=fs.length?fs.filter(function(k,i){return fs.indexOf(k)===i}).map(function(k){return PL[k]}).join('·'):'약점 보완';
+for(var i=0;i<d;i++){var k=tpl[i],ex=[];
+G[k].forEach(function(p){var f=fs.indexOf(p)>=0,n=k==='F'?(fs.length?3:2):(f?2:1);pick(p,n,i).forEach(function(x){ex.push(mk(x,f))})});
+days.push({t:k==='full'?'ABC'[i]+' 전신':k==='U'?'상체':k==='L'?'하체':'집중일 ('+lab+')',ex:ex.slice(0,8),cardio:(g!=='mus'&&(i%2===1||d<=2))?cardio():''})}
+return{days:days,note:N[wk-1],sets:sets}}
+function recCard(r){var m=S.sex==='m',h='<div class="card"><h2>🔍 내 몸을 보고 이렇게 골랐어요</h2>',P=function(t){h+='<p class="wy">'+t+'</p>'},fs=focusList();
+P('<b>집중 부위</b><br>'+((S.parts||['all'])[0]==='all'?'전신 골고루 → 상체·하체·코어를 균형 있게 넣었어요.':(S.parts.map(function(k){return PARTS.filter(function(p){return p[0]===k})[0][1]}).join(', '))+' → 해당 부위는 운동 종류를 늘리고 세트를 더했어요.'));
+P('<b>운동 단계: '+LN[S.level]+'</b><br>'+(S.level===0?'머신·맨몸처럼 자세 잡기 쉬운 운동만 골랐어요.':S.level===1?'기본 복합운동에 덤벨·머신을 섞었어요.':'바벨·풀업 같은 고난도 운동까지 포함했어요.'));
+P('<b>주 '+S.days+'회 · '+(S.equip==='h'?'집':'헬스장')+'</b><br>'+(S.days<=3?'매번 전신을 하되 날마다 다른 운동으로 돌려요.':S.days===4?'상체·하체를 번갈아 해서 회복 시간을 확보해요.':'상체·하체에 집중 부위 전용 날을 더했어요.')+(S.equip==='h'?' 기구 없이 가능한 운동만 넣었어요.':''));
+if(isProt(r))P('<b>관절 보호</b><br>'+(r.bmi>=27?'BMI '+r.bmi.toFixed(1)+'라 ':'')+(S.age>=50?'나이를 고려해 ':'')+'무릎·허리에 부담이 큰 운동은 빼고 안정적인 운동을 우선했어요.');
+if(r.bmi<18.5)P('<b>저체중 주의</b><br>BMI가 낮아요. 유산소는 줄이고 근력운동과 충분한 식사를 우선하세요.');
+if(S.fat!=null)P('<b>체지방률 '+S.fat+'%</b><br>'+(S.fat>(m?25:32)?'평균보다 높은 편이라 유산소를 주 2~3회 곁들이는 걸 추천해요.':'무난한 범위예요. 근력운동 중심으로 가도 좋아요.'));
+if(S.mus!=null){var pc=S.mus/S.w*100;P('<b>골격근량 비중 '+pc.toFixed(0)+'%</b><br>'+(pc<(m?38:30)?'근육 비중이 낮은 편이라 복합운동으로 근력을 먼저 키워 보세요.':'근육 비중이 양호해요. 약한 부위를 보완해 보세요.'))}
+if(S.wat!=null&&S.wat<r.water)P('<b>물 섭취</b><br>현재 '+S.wat+'L로 권장량('+r.water+'L)보다 적어요. 조금씩 늘려 보세요.');
+return h+'<p class="mu">※ 점수 규칙으로 고른 참고용 추천이에요 (AI 예측 아님).</p></div>'}
+</script>
 <script>
 var S={},step='start',QZ=[
 {q:'근육이 늘려면 꼭 필요한 조합은?',o:['자극(운동) + 단백질 + 휴식','매일 같은 부위만 무한 반복','땀을 최대한 많이 흘리기'],a:0},
@@ -55,8 +112,8 @@ function $(id){return document.getElementById(id)}
 function save(){try{localStorage.setItem('fitstart',JSON.stringify(S))}catch(e){}}
 function load(){try{var d=localStorage.getItem('fitstart');return d?JSON.parse(d):null}catch(e){return null}}
 function go(s){step=s;render();window.scrollTo(0,0)}
-var ORDER=['start','know','exp','body','goal'];
-function bar(){var i=ORDER.indexOf(step);if(step==='know')i=1;if(step==='exp')i=1;var p=(i+1)/5*100;return '<div class="bar"><i style="width:'+p+'%"></i></div>'}
+var ORDER=['start','know','exp','body','goal','part','days'];
+function bar(){var i=ORDER.indexOf(step);if(step==='know')i=1;if(step==='exp')i=1;var p=(i+1)/7*100;return '<div class="bar"><i style="width:'+p+'%"></i></div>'}
 function render(){var a=$('app'),h='';
 if(step==='start'){var old=load();
 h='<h1>💪 핏스타트</h1><p class="mu">목표에 맞는 주간 운동 루틴을 알려드려요.</p><div class="card"><h2>운동은 처음인가요?</h2><div class="opts"><button class="opt" onclick="S={first:true};go(\'know\')"><b>처음이에요</b><br><span class="mu">운동 지식부터 가볍게 확인해요</span></button><button class="opt" onclick="S={first:false};go(\'exp\')"><b>운동을 하고 있어요</b><br><span class="mu">운동 경력을 알려주세요</span></button></div></div>'+
@@ -68,14 +125,16 @@ else if(step==='exp'){h=bar()+'<button class="bk" onclick="go(\'start\')">← �
 else if(step==='body'){h=bar()+'<button class="bk" onclick="go(S.first?\'know\':\'exp\')">← 뒤로</button><div class="card"><h2>내 몸 정보</h2><div class="g2"><div><label>성별</label><select id="sex"><option value="m">남</option><option value="f">여</option></select></div><div><label>나이</label><input id="age" type="number" inputmode="numeric" placeholder="25"></div><div><label>키 (cm) *</label><input id="h" type="number" inputmode="decimal" placeholder="170"></div><div><label>몸무게 (kg) *</label><input id="w" type="number" inputmode="decimal" placeholder="65"></div></div>'+
 '<p class="mu" style="margin-top:14px">아래는 알고 있다면 작성해주세요 (선택)</p><div class="g2"><div><label>체지방률 (%)</label><input id="fat" type="number" inputmode="decimal"></div><div><label>골격근량 (kg)</label><input id="mus" type="number" inputmode="decimal"></div><div><label>기초대사량 (kcal)</label><input id="bmr" type="number" inputmode="numeric"></div><div><label>하루 물 섭취 (L)</label><input id="wat" type="number" step="0.1" inputmode="decimal"></div></div><p id="err" class="mu" style="color:#d92d20"></p><button class="pri" onclick="bodyDone()">다음</button></div>';}
 else if(step==='goal'){h=bar()+'<button class="bk" onclick="go(\'body\')">← 뒤로</button><div class="card"><h2>목표 정하기</h2><div class="opts">'+
-[['fat','체지방 감량','살을 빼고 몸을 가볍게'],['mus','근육 증가','몸을 키우고 탄탄하게'],['fit','체력·건강','꾸준히 건강한 습관 만들기']].map(function(g){return '<button class="opt'+(S.goal===g[0]?' on':'')+'" onclick="S.goal=\''+g[0]+'\';render()"><b>'+g[1]+'</b><br><span class="mu">'+g[2]+'</span></button>'}).join('')+'</div><label>일주일에 운동 가능한 횟수</label><select id="days">'+[2,3,4,5,6].map(function(d){return '<option'+(d===3?' selected':'')+'>'+d+'</option>'}).join('')+'</select><button class="pri" onclick="goalDone()">분석하고 루틴 받기</button></div>';}
+[['fat','체지방 감량','살을 빼고 몸을 가볍게'],['mus','근육 증가','몸을 키우고 탄탄하게'],['fit','체력·건강','꾸준히 건강한 습관 만들기']].map(function(g){return '<button class="opt'+(S.goal===g[0]?' on':'')+'" onclick="S.goal=\''+g[0]+'\';render()"><b>'+g[1]+'</b><br><span class="mu">'+g[2]+'</span></button>'}).join('')+'</div><button class="pri" onclick="if(!S.goal){alert(\'목표를 선택해주세요\');return}go(\'part\')">다음</button></div>';}
+else if(step==='part'){h=bar()+'<button class="bk" onclick="go(\'goal\')">← 뒤로</button><div class="card"><h2>어떤 부위를 가장 키우고 싶나요?</h2><p class="mu">최대 2개까지 고를 수 있어요</p><div class="opts">'+PARTS.map(function(p){return '<button class="opt'+((S.parts||[]).indexOf(p[0])>=0?' on':'')+'" onclick="togPart(\''+p[0]+'\')"><b>'+p[1]+'</b><br><span class="mu">'+p[2]+'</span></button>'}).join('')+'</div><button class="pri" onclick="if(!(S.parts||[]).length){alert(\'부위를 골라주세요\');return}go(\'days\')">다음</button></div>';}
+else if(step==='days'){h=bar()+'<button class="bk" onclick="go(\'part\')">← 뒤로</button><div class="card"><h2>운동 환경</h2><label>운동 장소</label><select id="equip"><option value="g">헬스장</option><option value="h">집 (기구 없이)</option></select><label>일주일에 운동 가능한 횟수</label><select id="days">'+[2,3,4,5,6].map(function(d){return '<option'+(d===3?' selected':'')+'>'+d+'</option>'}).join('')+'</select><button class="pri" onclick="goalDone()">분석하고 루틴 받기</button></div>';}
 else if(step==='dash'){h=dash();}
 a.innerHTML=h;}
 function knowDone(){var s=0;for(var i=0;i<3;i++){if(S['q'+i]===undefined){alert('모든 문제에 답해주세요');return}if(S['q'+i]===QZ[i].a)s++}S.score=s;S.level=s>=2?1:0;go('body')}
 function bodyDone(){var g=function(i){var v=parseFloat($(i).value);return isNaN(v)?null:v};
 S.sex=$('sex').value;S.age=g('age')||25;S.h=g('h');S.w=g('w');S.fat=g('fat');S.mus=g('mus');S.bmr=g('bmr');S.wat=g('wat');
 if(!S.h||!S.w||S.h<100||S.h>250||S.w<30||S.w>300){$('err').textContent='키와 몸무게를 올바르게 입력해주세요.';return}go('goal')}
-function goalDone(){if(!S.goal){alert('목표를 선택해주세요');return}S.days=+$('days').value;S.res=calc();save();go('dash')}
+function goalDone(){S.days=+$('days').value;S.equip=$('equip').value;S.res=calc();save();go('dash')}
 function calc(){var bmi=S.w/Math.pow(S.h/100,2);
 var bmr=S.bmr||Math.round(10*S.w+6.25*S.h-5*S.age+(S.sex==='m'?5:-161));
 var tdee=Math.round(bmr*(1.25+0.05*S.days));
@@ -83,22 +142,39 @@ var adj=S.goal==='fat'?-400:S.goal==='mus'?250:0;
 var prot=Math.round(S.w*(S.goal==='fit'?1.2:1.6));
 var water=Math.round(S.w*0.033*10)/10;
 return{bmi:bmi,bmr:bmr,tdee:tdee,kcal:tdee+adj,prot:prot,water:water}}
-function plan(){var d=S.days,key=d<=3?'full':d===4?'ul':'ppl',tpl=SPL[key],out=[],n=0;
+function plan0(){var d=S.days,key=d<=3?'full':d===4?'ul':'ppl',tpl=SPL[key],out=[],n=0;
 var sets=S.level===0?2:3,reps=S.goal==='mus'?'8~12':S.goal==='fat'?'12~15':'10~12';
 if(S.goal==='mus'&&S.level>=1)sets=4;
 var cardio=S.goal==='fat'?'유산소 30분':S.goal==='fit'?'가벼운 걷기·유산소 20분':'';
 for(var i=0;i<d;i++){var t=tpl[i%tpl.length];out.push({t:t[0],ex:t[1],cardio:cardio&&(i%2===1||d<=2)?cardio:''})}
 return{days:out,sets:sets,reps:reps,key:key}}
-function dash(){var r=S.res||calc(),p=plan(),G={fat:'체지방 감량',mus:'근육 증가',fit:'체력·건강'}[S.goal],L=['입문','초급','중급'][S.level];
+var WK=1,EXL={squat:['박스 스쿼트 (의자에 앉았다 일어나기)','스쿼트','바벨 백스쿼트'],bench:['푸시업 (무릎 대고 해도 OK)','덤벨 벤치프레스','바벨 벤치프레스'],lat:['랫풀다운 (가벼운 무게)','랫풀다운','풀업 / 어시스트 풀업'],row:['시티드 로우','덤벨 원암 로우','바벨 로우'],ohp:['머신 숄더프레스','덤벨 숄더프레스','바벨 숄더프레스'],leg:['레그프레스','레그프레스','불가리안 스플릿 스쿼트'],rdl:['힙힌지 연습 (맨몸)','루마니안 데드리프트','바벨 루마니안 데드리프트'],hip:['힙 브릿지','힙 브릿지','바벨 힙 쓰러스트'],plank:['플랭크 20~30초','플랭크 30~45초','플랭크 45~60초 / 행잉 레그레이즈']};
+function exName(e){var v=EXL[e];return v?v[S.level]:EX[e][0]}
+function plan(){var p=plan0(),L=S.level,g=S.goal,b=L===0?2:3;if(L===2||(g==='mus'&&L>=1))b=4;
+var N=['자세 익히기: 가벼운 무게로, 힘이 3회 남을 정도만','반복 횟수를 1~2회 늘려 보기','무게를 조금(2.5~5%) 올리고 횟수는 처음으로','회복 주간: 세트 수를 줄이고 몸 상태 점검'];
+p.note=N[WK-1];p.sets=(WK===1||WK===4)?Math.max(2,b-1):b;p.reps=p.reps+(WK===2?' (+1~2회)':'');
+var X=['curl','tri','lat2','hip'];
+if(L===2||(g==='mus'&&L>=1))p.days.forEach(function(d,i){var x=X[i%4];if(d.ex.indexOf(x)<0&&WK!==4)d.ex=d.ex.concat([x])});
+p.days.forEach(function(d){if(d.cardio)d.cardio=L===0?'걷기 20~30분':(L===2&&g==='fat')?'인터벌 유산소 20분 (1분 빠르게 / 1분 천천히)':d.cardio});
+return p}
+function why(r){var act=(1.25+0.05*S.days).toFixed(2),G={fat:'체지방 감량',mus:'근육 증가',fit:'체력·건강'}[S.goal],m=S.goal==='fat'?'−400':S.goal==='mus'?'+250':'±0',pr=S.goal==='fit'?1.2:1.6;
+return '<details open><summary>📖 이 수치는 어떻게 나왔나요?</summary>'+
+'<div class="wy"><b>BMI '+r.bmi.toFixed(1)+'</b><br>체중 ÷ 키(m)² = '+S.w+' ÷ ('+(S.h/100).toFixed(2)+')². 18.5 미만 저체중, 18.5~22.9 정상, 23~24.9 과체중, 25 이상 비만(아시아 기준)이에요. 근육량은 반영되지 않아서 근육이 많으면 높게 나올 수 있어요.</div>'+
+'<div class="wy"><b>기초대사량 '+r.bmr+'kcal</b><br>가만히 누워만 있어도 하루에 쓰는 에너지예요. '+(S.bmr?'직접 입력한 값을 썼어요.':'입력하지 않아서 키·몸무게·나이·성별로 추정했어요 (10×체중 + 6.25×키 − 5×나이 '+(S.sex==='m'?'+ 5':'− 161')+'). 실제와 ±10% 정도 차이가 날 수 있어요.')+'</div>'+
+'<div class="wy"><b>목표 칼로리 '+r.kcal+'kcal</b><br>기초대사량 '+r.bmr+' × 활동계수 '+act+' (주 '+S.days+'회 운동 기준) = 유지 칼로리 '+r.tdee+'kcal. 여기에 목표('+G+')에 맞춰 '+m+'kcal를 조정했어요.</div>'+
+'<div class="wy"><b>단백질 '+r.prot+'g</b><br>체중 '+S.w+'kg × '+pr+'g. 운동 후 근육 회복과 유지에 필요한 양이에요.</div>'+
+'<div class="wy"><b>물 '+r.water+'L</b><br>체중 × 33mL. 땀을 많이 흘린 날은 더 마셔요.</div>'+
+'<p class="mu">※ 일반적인 공식으로 계산한 참고값이에요. 2~4주 동안 몸의 변화를 보며 조정하세요.</p></details>'}
+function dash(){var r=S.res||calc(),p=recPlan(),G={fat:'체지방 감량',mus:'근육 증가',fit:'체력·건강'}[S.goal],L=['입문','초급','중급'][S.level];
 var bc=r.bmi<18.5?'저체중':r.bmi<23?'정상':r.bmi<25?'과체중':'비만';
 var h='<h1>📊 내 대시보드</h1><p class="mu"><span class="tag">'+G+'</span><span class="tag">'+L+' 단계</span><span class="tag">주 '+S.days+'회</span></p><div class="grid">';
 h+='<div class="card"><h2>몸 상태 분석</h2><div class="stats"><div class="st"><b>'+r.bmi.toFixed(1)+'</b><span>BMI ('+bc+')</span></div><div class="st"><b>'+r.bmr+'</b><span>기초대사량 kcal'+(S.bmr?'':' (추정)')+'</span></div><div class="st"><b>'+r.kcal+'</b><span>하루 목표 칼로리</span></div><div class="st"><b>'+r.prot+'g</b><span>하루 단백질</span></div><div class="st"><b>'+r.water+'L</b><span>권장 물 섭취'+(S.wat!=null?' (현재 '+S.wat+'L)':'')+'</span></div>'+
 (S.fat!=null?'<div class="st"><b>'+S.fat+'%</b><span>체지방률</span></div>':S.mus!=null?'<div class="st"><b>'+S.mus+'kg</b><span>골격근량</span></div>':'<div class="st"><b>'+S.w+'kg</b><span>현재 체중</span></div>')+'</div>';
-h+='<p class="mu" style="margin-top:12px">'+advice(r)+'</p></div>';
-h+='<div class="card"><h2>이번 주 루틴</h2>';
+h+='<p class="mu" style="margin-top:12px">'+advice(r)+'</p>'+why(r)+'</div>';h+=recCard(r);
+h+='<div class="card"><h2>주차별 루틴</h2><div class="tabs">'+[1,2,3,4].map(function(n){return '<button class="opt'+(WK===n?' on':'')+'" onclick="WK='+n+';render()">'+n+'주차</button>'}).join('')+'</div><p class="mu">'+p.note+' · 운동당 '+p.sets+'세트</p>';
 var names=['월','화','수','목','금','토','일'],gap={2:[0,3],3:[0,2,4],4:[0,1,3,4],5:[0,1,2,4,5],6:[0,1,2,3,4,5]}[S.days],k=0;
 for(var i=0;i<7;i++){var di=gap.indexOf(i);if(di<0){h+='<div class="day rest"><b style="color:var(--mu)">'+names[i]+'</b> 휴식 (스트레칭·가벼운 산책)</div>';continue}
-var d=p.days[di];h+='<div class="day"><b>'+names[i]+'</b> '+d.t+'<ul>'+d.ex.map(function(e){return '<li>'+EX[e][0]+' <span class="mu">· '+EX[e][1]+' '+(e==='plank'?'3세트':p.sets+'세트×'+p.reps+'회')+'</span></li>'}).join('')+(d.cardio?'<li>'+d.cardio+'</li>':'')+'</ul></div>'}
+var d=p.days[di];h+='<div class="day"><b>'+names[i]+'</b> '+d.t+'<ul>'+d.ex.map(function(e){return '<li>'+e.n+' <span class="mu">· '+e.pl+' · '+e.sr+'</span><br><span class="mu">'+e.why+'</span></li>'}).join('')+(d.cardio?'<li>'+d.cardio+'</li>':'')+'</ul></div>'}
 h+='</div>';
 h+='<div class="card"><h2>4주 진행 계획</h2><div class="wk"><b>1주</b><span>자세 익히기, 가벼운 무게로 적응 (여유 3회 남기기)</span><b>2주</b><span>반복 횟수를 1~2회 늘리기</span><b>3주</b><span>무게를 2.5~5% 올리고 횟수는 처음으로</span><b>4주</b><span>세트 수 줄이고 회복(디로드), 기록 점검</span></div><p class="mu" style="margin-top:12px">4주 뒤 체중·사진·들어올린 무게를 비교하고 다시 분석해 보세요.</p></div>';
 h+='<div class="card"><h2>꼭 기억하세요</h2><p class="mu">• 운동 전 5분 가볍게 몸 풀기, 세트 사이 60~90초 쉬기<br>• 통증(날카로운 아픔)이 있으면 중단하고 전문가 상담<br>• 잠 7시간 이상, 단백질과 물 챙기기<br>• 이 앱은 참고용이며 의학적 조언이 아닙니다</p></div>';
